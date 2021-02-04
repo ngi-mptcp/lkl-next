@@ -2,13 +2,12 @@
 # Generated files
 #
 bin2c
-conmakehash
 kallsyms
 kallsyms.exe
 unifdef
 unifdef.exe
 recordmcount
-sortextable
+sorttable
 asn1_compiler
 extract-cert
 sign-file
