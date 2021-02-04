@@ -112,13 +112,6 @@ static struct clock_event_device clockevent = {
 	.set_state_shutdown	= clockevent_set_state_shutdown,
 };
 
-static struct irqaction irq0  = {
-	.handler = timer_irq_handler,
-	.flags = IRQF_NOBALANCING | IRQF_TIMER,
-	.dev_id = &clockevent,
-	.name = "timer"
-};
-
 void __init time_init(void)
 {
 	int ret;
@@ -130,7 +123,8 @@ void __init time_init(void)
 	}
 
 	timer_irq = lkl_get_free_irq("timer");
-	setup_irq(timer_irq, &irq0);
+	request_irq(timer_irq, &timer_irq_handler,
+		    IRQF_NOBALANCING | IRQF_TIMER, "timer", &clockevent);
 
 	ret = clocksource_register_khz(&clocksource, 1000000);
 	if (ret)
