@@ -44,7 +44,7 @@ void __init bootmem_init(unsigned long mem_sz)
 	{
 		unsigned long zones_size[MAX_NR_ZONES] = {0, };
 
-		zones_size[ZONE_NORMAL] = (mem_size) >> PAGE_SHIFT;
+		zones_size[ZONE_NORMAL] = max_low_pfn;
 		free_area_init(zones_size);
 	}
 }

@@ -97,6 +97,10 @@ for c in $configs
 do
 	leak_error=1
 
+	if [ "${ARCH}" = "lkl" ]; then
+		break
+	fi
+
 	for ignore in $config_leak_ignores
 	do
 		if echo "$INFILE:$c" | grep -q "$ignore$"; then
