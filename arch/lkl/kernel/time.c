@@ -31,9 +31,9 @@ void calibrate_delay(void)
 {
 }
 
-void read_persistent_clock(struct timespec *ts)
+void read_persistent_clock64(struct timespec64 *ts)
 {
-	*ts = ns_to_timespec(lkl_ops->time());
+	*ts = ns_to_timespec64(lkl_ops->time());
 }
 
 /*
