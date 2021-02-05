@@ -37,6 +37,7 @@ config LKL
        select HAVE_MEMBLOCK
        select NO_BOOTMEM
        select BLK_DEV_NVME
+       select SET_FS
 
 config OUTPUT_FORMAT
        string "Output format"
