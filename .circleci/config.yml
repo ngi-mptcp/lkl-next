@@ -176,13 +176,8 @@ workflows:
   build:
     jobs:
      - x86_64
-     - x86_64_qemu
      - mingw32
-     - android-arm32
-     - android-aarch64
-     - freebsd11_x86_64
      - checkpatch
-     - i386
   nightly:
     triggers:
       - schedule:
