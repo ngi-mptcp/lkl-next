@@ -65,8 +65,7 @@ static inline int lkl_sys_fstatfs(unsigned int fd, struct lkl_statfs *buf)
 }
 
 #define lkl_sys_nanosleep lkl_sys_nanosleep_time32
-static inline int lkl_sys_nanosleep_time32(struct lkl_timespec *rqtp,
-					   struct lkl_timespec *rmtp)
+static inline int lkl_sys_nanosleep_time32(void *rqtp, void *rmtp)
 {
 	long p[6] = {(long)rqtp, (long)rmtp, 0, 0, 0, 0};
 
