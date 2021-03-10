@@ -21,7 +21,8 @@ endif
 ifeq ($(shell uname -s), Linux)
 NPROC=$(shell nproc)
 else # e.g., FreeBSD
-NPROC=$(shell sysctl -n hw.ncpu)
+#NPROC=$(shell sysctl -n hw.ncpu)
+NPROC=1
 endif
 
 LDFLAGS_vmlinux += -r

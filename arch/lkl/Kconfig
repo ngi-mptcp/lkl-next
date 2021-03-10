@@ -38,6 +38,8 @@ config LKL
        select NO_BOOTMEM
        select BLK_DEV_NVME
        select SET_FS
+       select MPTCP
+       select MPTCP_IPV6
 
 config OUTPUT_FORMAT
        string "Output format"
@@ -50,7 +52,7 @@ config PHYS_ADDR_T_64BIT
        def_bool 64BIT
 
 config 64BIT
-       def_bool y if "$(EXEC_FORMAT)" = "elf64" || "$(OUTPUT_FORMAT)" = "pe-x86-64"
+       def_bool y if "$(EXEC_FORMAT)" = "elf64" || "$(OUTPUT_FORMAT)" = "pe-x86-64" || "$(OUTPUT_FORMAT)" = "pei-x86-64"
 
 config COREDUMP
        def_bool n

@@ -168,14 +168,14 @@ class Parser(object):
                 break
 
             if self.in_yaml:
-                if Parser.RE_YAMLISH_END.match(line):
+                if Parser.RE_YAMLISH_END.match(line.decode('utf-8')):
                     self.run.test()._yaml_buffer.append(line.strip())
                     self.in_yaml = False
                 else:
                     self.run.test()._yaml_buffer.append(line.rstrip())
                 continue
 
-            line = line.strip()
+            line = line.strip().decode('utf-8')
 
             if self.in_test:
                 if Parser.RE_EXPLANATION.match(line):

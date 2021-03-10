@@ -148,7 +148,8 @@ endif
 abs_srctree := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
 ifneq ($(words $(subst :, ,$(abs_srctree))), 1)
-$(error source directory cannot contain spaces or colons)
+#$(error source directory cannot contain spaces or colons)
+$(echo "source directory cannot contain spaces or colons")
 endif
 
 ifneq ($(abs_srctree),$(abs_objtree))

@@ -9,6 +9,8 @@ function prepfs()
     set -e
 
     file=`mktemp`
+    mv $file ./
+    file=`basename $file`
 
     dd if=/dev/zero of=$file bs=1024 count=204800
 

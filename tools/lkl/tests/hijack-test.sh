@@ -230,8 +230,8 @@ test_tap_ping_lkl()
     set -e
 
     # Now let's check that the host can see LKL.
-    lkl_test_cmd sudo ip -6 neigh del $(ip6_lkl) dev $(tap_ifname)
-    lkl_test_cmd sudo ip neigh del $(ip_lkl) dev $(tap_ifname)
+    lkl_test_cmd sudo ip -6 neigh del $(ip6_lkl) dev $(tap_ifname) || true
+    lkl_test_cmd sudo ip neigh del $(ip_lkl) dev $(tap_ifname) || true
     run_hijack_cfg $(lkl_test_cmd which sleep) 3 &
     sleep 2
     lkl_test_cmd sudo ping -i 0.01 -c 65 $(ip_lkl)
