@@ -1,0 +1,159 @@
+name: CI
+on:
+  push:
+    branches:
+      - master
+      - '**'
+  pull_request:
+    branches:
+      - master
+      - 'release/**'
+
+jobs:
+  #
+  # Build/tests
+  #
+  integration:
+    name: Integration test
+    runs-on: ${{ matrix.runs_on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - displayTargetName: ubuntu-18.04
+            os: unix
+            runs_on: ubuntu-18.04
+            shell: bash
+          - displayTargetName: windows-2019
+            os: windows
+            runs_on: windows-2019
+            shell: msys2 {0}
+    timeout-minutes: 100
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      USE_CCACHE: 1
+
+    defaults:
+       run:
+         shell: ${{ matrix.shell }}
+#       working-directory: src/lkl-next
+
+    steps:
+      - name: Checkout
+        if: runner.os == 'Linux'
+        uses: actions/checkout@v2
+        with:
+          path: src/lkl-next
+
+      - name: Set env
+        shell: bash
+        run: |
+          echo "/usr/lib/ccache/bin:/usr/lib/ccache:/mingw64/bin:${{ github.workspace }}/bin" >> $GITHUB_PATH
+          echo "export PATH=/usr/lib/ccache/bin:/usr/lib/ccache:/mingw64/bin:${{ github.workspace }}/bin:$PATH" >> $HOME/.bashrc
+
+      - uses: msys2/setup-msys2@v2
+        if: runner.os == 'Windows'
+        with:
+          msystem: MSYS
+          path-type: strict
+          update: true
+          install: >-
+            base-devel
+            gcc
+            git
+            bc
+            python-pip
+            dosfstools
+            mingw-w64-x86_64-ccache
+
+      - uses: actions/cache@v2
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-ccache-build-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-ccache-build-
+
+      - name: Partial Clone
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          REPO="https://${GITHUB_ACTOR}:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git"
+          BRANCH="${GITHUB_REF/#refs\/heads\//}"
+
+          git init $GITHUB_WORKSPACE/src/lkl-next
+          cd src/lkl-next
+          git remote add origin $REPO
+          git config core.sparseCheckout true
+          echo -e '/*\n!*aux.*' >> .git/info/sparse-checkout
+          git -c protocol.version=2 fetch --no-tags --prune --progress --depth=10 origin +${GITHUB_SHA}:refs/remotes/origin/${BRANCH}
+          git checkout --progress --force -B $BRANCH refs/remotes/origin/$BRANCH
+
+      - name: Install ccache on ubuntu-latest
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt update -y
+          sudo apt install -y ccache
+
+      - name: Install patched binutils for Windows
+        working-directory: src/lkl-next
+        if: runner.os == 'Windows'
+        run: |
+          cp -f tools/lkl/bin/*.exe /usr/bin/
+
+      - name: Fix broken msys2 ccache
+        working-directory: src/lkl-next
+        if: runner.os == 'Windows'
+        run: |
+          mkdir -p /usr/lib/ccache/bin
+          cd /usr/lib/ccache/bin
+          echo -e '#!/bin/bash\n\nccache /usr/bin/cc "$@"' > cc
+          echo -e '#!/bin/bash\n\nccache /usr/bin/gcc "$@"' > gcc
+          echo -e '#!/bin/bash\n\nccache /usr/bin/cpp "$@"' > cpp
+          export PATH=/usr/lib/ccache/bin:/usr/lib/ccache:/mingw64/bin:$PATH
+          which gcc
+          ccache -z
+
+      - name: pkg dependency
+        run: |
+          pip install yamlish junit_xml
+
+#      - name: Setup tmate session
+#        uses: mxschmitt/action-tmate@v3
+
+      - name: clean
+        working-directory: src/lkl-next
+        run: |
+          export PATH=/usr/lib/ccache/bin:/usr/lib/ccache:/mingw64/bin:$PATH
+          cd tools/lkl && make clean-conf
+          rm -rf ~/junit
+
+      - name: build
+        working-directory: src/lkl-next
+        run: |
+          export PATH=/usr/lib/ccache/bin:/usr/lib/ccache:/mingw64/bin:$PATH
+          cd tools/lkl && make -j3 ${MKARG}
+          mkdir -p ~/destdir && make DESTDIR=~/destdir
+
+      - name: run tests
+        working-directory: src/lkl-next
+        run: |
+          export PATH=/usr/lib/ccache/bin:/usr/lib/ccache:/mingw64/bin:$PATH
+          mkdir -p ~/junit
+          make -C tools/lkl run-tests tests="--junit-dir $HOME/junit"
+          find ./tools/lkl/ -type f -name "*.xml" -exec mv {} ~/junit/ \;
+
+      - name: check mptcp-enabled
+        working-directory: src/lkl-next
+        run: |
+          ./tools/lkl/tests/boot |grep -i mptcp -A2 -B2
+
+      - name: Archive test resuls xml
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-results
+          path: ~/junit/
+
+      - name: ccache stat
+        run: |
+          export PATH=/usr/lib/ccache/bin:/usr/lib/ccache:/mingw64/bin:$PATH
+          ccache --show-stats
