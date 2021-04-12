@@ -4,6 +4,8 @@ on:
     branches:
       - master
       - '**'
+    tags:
+      - 'milestone-*'
   pull_request:
     branches:
       - master
@@ -32,6 +34,7 @@ jobs:
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
       USE_CCACHE: 1
+      working-directory: src/lkl-next
 
     defaults:
        run:
@@ -124,7 +127,7 @@ jobs:
         run: |
           export PATH=/usr/lib/ccache/bin:/usr/lib/ccache:/mingw64/bin:$PATH
           cd tools/lkl && make clean-conf
-          rm -rf ~/junit
+          rm -rf ./junit
 
       - name: build
         working-directory: src/lkl-next
@@ -137,23 +140,55 @@ jobs:
         working-directory: src/lkl-next
         run: |
           export PATH=/usr/lib/ccache/bin:/usr/lib/ccache:/mingw64/bin:$PATH
-          mkdir -p ~/junit
-          make -C tools/lkl run-tests tests="--junit-dir $HOME/junit"
-          find ./tools/lkl/ -type f -name "*.xml" -exec mv {} ~/junit/ \;
+          mkdir -p ./junit
+          make -C tools/lkl run-tests tests="--junit-dir ../../junit"
+          find ./tools/lkl/ -type f -name "*.xml" -exec mv {} ./junit/ \;
 
       - name: check mptcp-enabled
         working-directory: src/lkl-next
         run: |
-          ./tools/lkl/tests/boot |grep -i mptcp -A2 -B2
+          echo "### on ${{ matrix.runs_on }}" > ${{ github.workflow }}-${{ matrix.runs_on }}-dmesg.txt
+          ./tools/lkl/tests/boot |grep -i mptcp -A2 -B2 | tee -a ${{ github.workflow }}-${{ matrix.runs_on }}-dmesg.txt
+          DMESG=$(./tools/lkl/tests/boot | grep -E "\[" | sed -z "s/\\n/\\\\n/g")
+          JSON=$(cat << EOF
+          [
+              {
+                    "file": "dmesg.out",
+                    "line": 1,
+                    "title": "title for my annotation",
+                    "message": "$DMESG",
+                    "annotation_level": "notice"
+              }
+          ]
+          EOF
+          )
+          echo $JSON > ./annotations.json
+          cat ./annotations.json
 
       - name: Archive test resuls xml
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: test-results
-          path: ~/junit/
+          name: test-results-${{ matrix.runs_on }}
+          path: ${{ github.workspace }}/${{env.working-directory}}/junit/
 
       - name: ccache stat
         run: |
           export PATH=/usr/lib/ccache/bin:/usr/lib/ccache:/mingw64/bin:$PATH
           ccache --show-stats
+
+      - name: Annotate
+        uses: yuzutech/annotations-action@v0.3.0
+        with:
+          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+          input: "${{env.working-directory}}/annotations.json"
+          title: "dmesg (${{ matrix.runs_on }})"
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          body_path: ${{env.working-directory}}/${{ github.workflow }}-${{ matrix.runs_on }}-dmesg.txt
+          files: ${{env.working-directory}}/${{ github.workflow }}-${{ matrix.runs_on }}-dmesg.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
