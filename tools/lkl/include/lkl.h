@@ -670,7 +670,7 @@ struct lkl_netdev_args {
  * @returns a network device id (0 is valid) or a strictly negative value in
  * case of error
  */
-#ifdef LKL_HOST_CONFIG_VIRTIO_NET
+#if defined (LKL_HOST_CONFIG_VIRTIO_NET) || defined(LKL_HOST_CONFIG_NT)
 int lkl_netdev_add(struct lkl_netdev *nd, struct lkl_netdev_args* args);
 #else
 static inline int lkl_netdev_add(struct lkl_netdev *nd,
@@ -688,7 +688,7 @@ static inline int lkl_netdev_add(struct lkl_netdev *nd,
 *
 * @id - the network device id, as return by @lkl_netdev_add
 */
-#ifdef LKL_HOST_CONFIG_VIRTIO_NET
+#if defined (LKL_HOST_CONFIG_VIRTIO_NET) || defined(LKL_HOST_CONFIG_NT)
 void lkl_netdev_remove(int id);
 #else
 static inline void lkl_netdev_remove(int id)
@@ -701,7 +701,7 @@ static inline void lkl_netdev_remove(int id)
  *
  * @nd - the network device to free
  */
-#ifdef LKL_HOST_CONFIG_VIRTIO_NET
+#if defined (LKL_HOST_CONFIG_VIRTIO_NET) || defined(LKL_HOST_CONFIG_NT)
 void lkl_netdev_free(struct lkl_netdev *nd);
 #else
 static inline void lkl_netdev_free(struct lkl_netdev *nd)
@@ -819,6 +819,23 @@ lkl_netdev_pipe_create(const char *ifname, int offload)
 	return NULL;
 }
 #endif
+
+/**
+ * lkl_netdev_winatp_create - create tap-windows net_device for the virtio
+ * net backend
+ *
+ * @params - a name for this device.
+ */
+#ifdef LKL_HOST_CONFIG_NT
+struct lkl_netdev *lkl_netdev_wintap_create(const char *ifparams);
+#else
+static inline struct lkl_netdev *
+lkl_netdev_wintap_create(const char *ifparams)
+{
+	return NULL;
+}
+#endif
+
 
 /*
  * lkl_register_dbg_handler- register a signal handler that loads a debug lib.

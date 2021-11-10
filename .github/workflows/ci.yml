@@ -58,7 +58,7 @@ jobs:
         if: runner.os == 'Windows'
         with:
           msystem: MSYS
-          path-type: strict
+          path-type: minimal
           update: true
           install: >-
             base-devel
@@ -115,6 +115,18 @@ jobs:
           which gcc
           ccache -z
 
+      - name: Install openvpn
+        working-directory: src/lkl-next
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          curl -L -O https://swupdate.openvpn.org/community/releases/OpenVPN-2.5.3-I601-amd64.msi
+          cmd.exe /c "start /wait msiexec /i OpenVPN-2.5.3-I601-amd64.msi ADDLOCAL=OpenVPN,Drivers.TAPWindows6,Drivers /qn /l*v c:\\msilog.txt"
+          cat c:\\msilog.txt
+          #curl -L -O https://1.as.dl.wireshark.org/win64/Wireshark-win64-3.4.8.exe
+          #Wireshark-win64-3.4.8.exe /NCRC /S /desktopicon=yes /quicklaunchicon=no
+
+
       - name: pkg dependency
         run: |
           pip install yamlish junit_xml
@@ -136,6 +148,13 @@ jobs:
           cd tools/lkl && make -j3 ${MKARG}
           mkdir -p ~/destdir && make DESTDIR=~/destdir
 
+      - name: packet capture on
+        working-directory: src/lkl-next
+        if: runner.os == 'Windows'
+        run: |
+          pktmon list
+          pktmon start --capture --comp 1
+
       - name: run tests
         working-directory: src/lkl-next
         run: |
@@ -143,6 +162,23 @@ jobs:
           mkdir -p ./junit
           make -C tools/lkl run-tests tests="--junit-dir ../../junit"
           find ./tools/lkl/ -type f -name "*.xml" -exec mv {} ./junit/ \;
+
+      - name: headers compress
+        if: runner.os == 'Windows'
+        working-directory: src/lkl-next
+        run: |
+          cd tools/lkl && powershell compress-archive include include.zip && cd ../..
+
+      - name: packet capture off
+        working-directory: src/lkl-next
+        if: runner.os == 'Windows'
+        run: |
+          pktmon stop
+          pktmon etl2pcap PktMon.etl
+          cp PktMon.pcapng ./junit/
+ 
+#      - name: Setup tmate session
+#        uses: mxschmitt/action-tmate@v3
 
       - name: check mptcp-enabled
         working-directory: src/lkl-next
@@ -172,6 +208,12 @@ jobs:
           name: test-results-${{ matrix.runs_on }}
           path: ${{ github.workspace }}/${{env.working-directory}}/junit/
 
+      - name: headers
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v2
+        with:
+          path: ${{ github.workspace }}/${{env.working-directory}}/tools/lkl/include.zip
+
       - name: ccache stat
         run: |
           export PATH=/usr/lib/ccache/bin:/usr/lib/ccache:/mingw64/bin:$PATH
@@ -190,5 +232,16 @@ jobs:
         with:
           body_path: ${{env.working-directory}}/${{ github.workflow }}-${{ matrix.runs_on }}-dmesg.txt
           files: ${{env.working-directory}}/${{ github.workflow }}-${{ matrix.runs_on }}-dmesg.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release (extra)
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/') && runner.os == 'Windows'
+        with:
+          files: |
+            ${{ github.workspace }}/${{env.working-directory}}/junit/PktMon.pcapng
+            ${{ github.workspace }}/${{env.working-directory}}/tools/lkl/liblkl.a
+            ${{ github.workspace }}/${{env.working-directory}}/tools/lkl/include.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

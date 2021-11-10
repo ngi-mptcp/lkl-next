@@ -220,6 +220,21 @@ int lkl_netdev_add(struct lkl_netdev *nd, struct lkl_netdev_args* args)
 	memset(dev, 0, sizeof(*dev));
 
 	dev->dev.device_id = LKL_VIRTIO_ID_NET;
+#if 0
+	if (nd->mac[0] || nd->mac[1] || nd->mac[2] || nd->mac[3] ||
+		nd->mac[4] || nd->mac[5]) {
+		dev->dev.device_features |= BIT(LKL_VIRTIO_NET_F_MAC);
+		memcpy(dev->config.mac, nd->mac, LKL_ETH_ALEN);
+		lkl_printf("%s: mac=%02x:%02x:%02x:%02x:%02x:%02x\n", __func__,
+			   dev->config.mac[0],
+			   dev->config.mac[1],
+			   dev->config.mac[2],
+			   dev->config.mac[3],
+			   dev->config.mac[4],
+			   dev->config.mac[5]);
+	}
+#endif
+	/* configured mac address is prior to the auto-detected one. */
 	if (args) {
 		if (args->mac) {
 			dev->dev.device_features |= BIT(LKL_VIRTIO_NET_F_MAC);
